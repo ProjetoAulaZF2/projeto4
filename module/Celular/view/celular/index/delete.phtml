@@ -1,0 +1,17 @@
+<?php
+$title = 'Excluir Celular';
+$this->headTitle($title);
+?>
+<h1><?php echo $this->escapeHtml($title); ?></h1>
+
+<p>Você tem certeza que vai deletar esses registros:
+    '<?php echo $this->escapeHtml($celular->marca); ?>' 
+    '<?php echo $this->escapeHtml($celular->modelo); ?>'?
+</p>
+<form action="<?php echo $this->basepath("celular/index/delete/{$this->id}"); ?>" method="post">
+<div>
+    <input type="hidden" name="id" value="<?php echo (int) $celular->id; ?>" />
+    <input type="submit" name="del" value="Sim" />
+    <input type="submit" name="del" value="Nao" />
+</div>
+</form>

@@ -1,0 +1,28 @@
+<?php
+$title = 'Celulares';
+$this->headTitle($title);
+?>
+<h1><?php echo $this->escapeHtml($title); ?></h1>
+<p>
+    <a href="<?php echo $this->basePath('celular/index/add') ?>"><span class="glyphicon glyphicon-plus"></span>  Cadastrar novo celular</a>
+</p>
+
+    <div class="table-responsive">
+        <table class="table">
+        <tr>
+            <th>Marca</th>
+            <th>Modelo</th>
+            <th>&nbsp;</th>
+        </tr>
+        <?php foreach ($celulares as $celular) : ?>
+        <tr>
+            <td><?php echo $this->escapeHtml($celular->marca);?></td>
+            <td><?php echo $this->escapeHtml($celular->modelo);?></td>
+            <td>
+                <a href="<?php echo $this->basePath('celular/index/edit/' . $celular->id) ?>"><span class="glyphicon glyphicon-pencil"></span> Editar</a>
+                <a href="<?php echo $this->basePath('celular/index/delete/' . $celular->id) ?>"><span class="glyphicon glyphicon-remove"></span> Apagar</a>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+        </table>
+    </div>

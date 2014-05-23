@@ -1,0 +1,32 @@
+<?php
+$title = 'Editar o celular';
+$this->headTitle($title);
+?>
+<h1><?php echo $this->escapeHtml($title); ?></h1>
+<?php
+$form = $this->form;
+$form->setAttribute('action', $this->basePath('celular/index/edit'));
+$form->prepare();
+?>
+<div class="page-header">
+<?php echo $this->form()->openTag($form); ?>
+<?php echo $this->formHidden($form->get('id'));?>
+    <div class="form-group">
+    	<label for="marca" class="col-sm-2 control-label">Marca</label>
+    	<div class="col-sm-3">
+    		<?php echo $this->formRow($form->get('marca')); ?>
+    	</div>
+    </div>
+    <div class="form-group">
+    	<label for="modelo" class="col-sm-2 control-label">Modelo</label>
+    	<div class="col-sm-3">
+    		<?php echo $this->formRow($form->get('modelo')); ?>
+    	</div>
+    </div>
+    <div class="form-group">
+    	<div class="col-sm-offset-2 col-sm-4">
+    		<?php echo $this->formSubmit($form->get('submit')); ?>
+    	</div>
+    </div>
+<?php echo $this->form()->closeTag();?>
+</div>
