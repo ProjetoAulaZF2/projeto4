@@ -416,7 +416,7 @@ No arquivo projeto4/module/Application/Module.php coloque o seguinte código:
 
 Perfeito! Agora temos um projeto com autenticação via banco de dados mysql, é lógico que poderíamos utilizar de várias outras formas de autenticação,
 por arquivo, LDAP ou etc...
-Mas como é só o ponta pé inicial, espero que esse projeto ajude em nossas aulas.
+Mas como é só o ponta pé inicial, espero que esse projeto ajude em nossas aulas presenciais.
 Agora em nosso próximo projeto, ou seja, o projeto 5 irei implementa além da autenticação o ACL, continue seguindo os projetos que você irá muito bem em nossas
 aulas presenciais de Zend Framework 2.
 
