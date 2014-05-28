@@ -1,26 +1,32 @@
 <?php
-$title = 'Editar Celular';
+$title = 'Editar Usuário';
 $this->headTitle($title);
 ?>
 <h1><?php echo $this->escapeHtml($title); ?></h1>
 <?php
 $form = $this->form;
-$form->setAttribute('action', $this->basePath('celular/index/edit'));
+$form->setAttribute('action', $this->basePath('usuario/index/edit'));
 $form->prepare();
 ?>
 <div class="page-header">
 <?php echo $this->form()->openTag($form); ?>
 <?php echo $this->formHidden($form->get('id'));?>
     <div class="form-group">
-    	<label for="marca" class="col-sm-2 control-label">Marca</label>
+    	<label for="marca" class="col-sm-2 control-label">Nome</label>
     	<div class="col-sm-3">
-    		<?php echo $this->formRow($form->get('marca')); ?>
+    		<?php echo $this->formRow($form->get('nome')); ?>
     	</div>
     </div>
     <div class="form-group">
-    	<label for="modelo" class="col-sm-2 control-label">Modelo</label>
+    	<label for="modelo" class="col-sm-2 control-label">Email</label>
     	<div class="col-sm-3">
-    		<?php echo $this->formRow($form->get('modelo')); ?>
+    		<?php echo $this->formRow($form->get('email')); ?>
+    	</div>
+    </div>
+    <div class="form-group">
+    	<label for="modelo" class="col-sm-2 control-label">Login</label>
+    	<div class="col-sm-3">
+    		<?php echo $this->formRow($form->get('login')); ?>
     	</div>
     </div>
     <div class="form-group">

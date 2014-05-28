@@ -1,366 +1,424 @@
-Terceiro projeto das aulas de Zend Framework 2 com Nataniel Paiva
+Quarto projeto das aulas de Zend Framework 2 com Nataniel Paiva
 =======================
 
 Introdução
 ------------
 
-Esse terceiro projeto contempla os seguintes tópicos:
+Esse quarto projeto contempla os seguintes tópicos:
 
-* Criar um formulário básico com o Zend\Form\Form
-* CRUD da primeira tabela que criamos, no caso a tb_celular
-* Validadores e filtros
+* Criar uma autenticação utilizando a tb_usuario
+* Configurar os módulos para que só permita a navegação de usuário autenticado.
 
 
-Criação do formulário para adicionar registros
+
+Tabela de autenticação
 -----------------------------------------------
 
-Primeiro vamos criar a nossa classe de formulário no arquivo projeto3/module/Celular/src/Celular/Form/CelularForm.php 
+Vamos começar criando uma tabela para realizarmos nossa autenticação.
+Vamos criar a tb_usuario.
+O banco para o nosso projeto será o sequinte script:
+
+	CREATE SCHEMA IF NOT EXISTS `db_projeto4` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci ;
+
+	CREATE TABLE IF NOT EXISTS `db_projeto4`.`tb_celular` (
+	  `id` INT(11) NOT NULL AUTO_INCREMENT,
+	  `marca` VARCHAR(100) NOT NULL,
+	  `modelo` VARCHAR(100) NOT NULL,
+	  `ativo` TINYINT(4) NULL DEFAULT NULL,
+	  PRIMARY KEY (`id`))
+	ENGINE = InnoDB
+	DEFAULT CHARACTER SET = utf8
+	COLLATE = utf8_general_ci;
+
+	CREATE TABLE IF NOT EXISTS `db_projeto4`.`tb_usuario` (
+	  `id` INT(11) NOT NULL AUTO_INCREMENT,
+	  `nome` VARCHAR(100) NOT NULL,
+	  `email` VARCHAR(100) NOT NULL,
+	  `login` VARCHAR(20) NOT NULL,
+	  `senha` VARCHAR(32) NOT NULL,
+	  `ativo` TINYINT(4) NOT NULL DEFAULT 1,
+	  PRIMARY KEY (`id`))
+	ENGINE = InnoDB
+	DEFAULT CHARACTER SET = utf8
+	COLLATE = utf8_general_ci;
+
+
+	INSERT INTO `db_projeto4`.`tb_celular` (`marca`, `modelo`, `ativo`) VALUES ('Samsung', 'Galaxy 5', '1');
+	INSERT INTO `db_projeto4`.`tb_celular` (`id`, `marca`, `modelo`, `ativo`) VALUES ('', 'Motorola', 'Moto G', '1');
+	INSERT INTO `db_projeto4`.`tb_celular` (`id`, `marca`, `modelo`, `ativo`) VALUES ('', 'Nokia', 'Lumia', '1');
+
+	INSERT INTO `db_projeto4`.`tb_usuario` (`nome`, `email`, `login`, `senha`) VALUES ('Nataniel Paiva', 'nataniel.paiva@gmail.com', 'nataniel.paiva', md5('123'));
+
+
+Nesse projeto irá conter mais um CRUD de usuários, porém não irei mostrar esse exemplo aqui.
+Vamos nos focar em criar a autenticação.
+
+Primeiro vamos criar o módulo Autenticacao e em seu arquivo Module.php coloque o seguinte código:
+
+	<?php
+	namespace Autenticacao;
+
+	use Zend\ModuleManager\Feature\AutoloaderProviderInterface;
+	use Zend\Authentication\Storage;
+	use Zend\Authentication\AuthenticationService;
+	use Zend\Authentication\Adapter\DbTable as DbTableAuthAdapter;
+
+	class Module
+	{
+	    public function onBootstrap($e)
+	    {
+	    	
+		$e->getApplication()->getEventManager()->getSharedManager()->attach('Zend\Mvc\Controller\AbstractActionController', 'dispatch', function($e)
+		{
+			$controller = $e->getTarget();
+			$controllerClass = get_class($controller);
+			$moduleNamespace = substr($controllerClass, 0, strpos($controllerClass, '\\'));
+			$config = $e->getApplication()->getServiceManager()->get('config');
+			if (isset($config['module_layouts'][$moduleNamespace])) {
+				$controller->layout($config['module_layouts'][$moduleNamespace]);
+			}
+		}
+		, 100);
+	    }
+	    
+	    public function getAutoloaderConfig()
+	    {
+		return array(
+		    'Zend\Loader\ClassMapAutoloader' => array(
+		        __DIR__ . '/autoload_classmap.php',
+		    ),
+		    'Zend\Loader\StandardAutoloader' => array(
+		        'namespaces' => array(
+		            __NAMESPACE__ => __DIR__ . '/src/' . __NAMESPACE__,
+		        ),
+		    ),
+		);
+	    }
+
+	    public function getConfig()
+	    {
+		return include __DIR__ . '/config/module.config.php';
+	    }
+	    
+	    public function getServiceConfig()
+	    {
+	    	return array(
+	    			'factories'=>array(
+	    					'Autenticacao\Model\AutenticacaoStorage' => function($sm){
+	    						return new \Autenticacao\Model\AutenticacaoStorage('db_projeto4');
+	    					},
+	    					 
+	    					'AuthService' => function($sm) {
+	    						$dbAdapter           = $sm->get('Zend\Db\Adapter\Adapter');
+	    						$dbTableAuthAdapter  = new DbTableAuthAdapter($dbAdapter,
+	    								'tb_usuario','login','senha', 'MD5(?)');
+	    						 
+	    						$authService = new AuthenticationService();
+	    						$authService->setAdapter($dbTableAuthAdapter);
+	    						$authService->setStorage($sm->get('Autenticacao\Model\AutenticacaoStorage'));
+	    
+	    						return $authService;
+	    					},
+	    			),
+	    	);
+	    }
+	}
+
+
+Depois vamos criar as rotas em nosso arquivo module.config.php com o seguinte código:
+
+	<?php
+	return array(
+	    'controllers' => array(
+		'invokables' => array(
+		    'Autenticacao\Controller\Auth' => 'Autenticacao\Controller\AuthController',
+		    'Autenticacao\Controller\Deny' => 'Autenticacao\Controller\DenyController',
+		),
+	    ),
+	    'module_layouts' => array(
+	    		'Autenticacao' => 'layout/login',
+	    ),
+			'router' => array(
+					'routes' => array(
+							'autenticar' => array(
+									'type'    => 'segment',
+									'options' => array(
+											'route'    => '/autenticar[/][:action][/:id]',
+											'constraints' => array(
+													'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+													'id'     => '[0-9]+',
+											),
+											'defaults' => array(
+													'controller' => 'Autenticacao\Controller\Auth',
+													'action'     => 'login',
+											),
+									),
+							),
+					    
+					    'sair' => array(
+					    		'type'    => 'segment',
+					    		'options' => array(
+					    				'route'    => '/sair[/][:action][/:id]',
+					    				'constraints' => array(
+					    						'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+					    						'id'     => '[0-9]+',
+					    				),
+					    				'defaults' => array(
+					    						'controller' => 'Autenticacao\Controller\Auth',
+					    						'action'     => 'logout',
+					    				),
+					    		),
+					    ),
+
+					),
+			),
+	    'view_manager' => array(
+		'template_path_stack' => array(
+		    'Autenticacao' => __DIR__ . '/../view',
+		),
+	    ),
+	);
+
+Depois teremos mais configurações no aquivo Module.php do módulo Application, mas vamos primeiro criar as classes necessárias no
+módulo de Autenticacao.
+Primeiro vamos criar a nossa model Autenticacao no seguinte caminho projeto4/module/Autenticacao/src/Autenticacao/Model/AutenticacaoStorage.php
 com o seguinte código:
 
 	<?php
-	namespace Celular\Form;
-
-	use Zend\Form\Form;
-
-	class CelularForm extends Form
+	namespace Autenticacao\Model;
+	 
+	use Zend\Authentication\Storage;
+	 
+	class AutenticacaoStorage extends Storage\Session
 	{
-	    public function __construct($name = null)
+	    public function setRememberMe($rememberMe = 0, $time = 1209600)
 	    {
-		parent::__construct('celular');
-		$this->setAttribute('method', 'post');
-		$this->add(array(
-		    'name' => 'id',
-		    'type' => 'Hidden',
-		));
-		$this->add(array(
-		    'name' => 'marca',
-		    'type' => 'Text',
-		    'options' => array(
-		        'label' => 'Marca',
-		    ),
-		));
-		$this->add(array(
-		    'name' => 'modelo',
-		    'type' => 'Modelo',
-		    'options' => array(
-		        'label' => 'Modelo',
-		    ),
-		));
-		$this->add(array(
-		    'name' => 'submit',
-		    'type' => 'Submit',
-		    'attributes' => array(
-		        'value' => 'Salvar',
-		        'id' => 'submitbutton',
-		    ),
-		));
+		 if ($rememberMe == 1) {
+		     $this->session->getManager()->rememberMe($time);
+		 }
 	    }
-	}
-
-
-Confira se no seu arquivo de model que fica no caminho projeto3/module/Celular/src/Celular/Model/Celular.php 
-tem as seguintes namespaces:
-
-	use Zend\InputFilter\Factory as InputFactory;
-	use Zend\InputFilter\InputFilter;
-	use Zend\InputFilter\InputFilterAwareInterface;
-	use Zend\InputFilter\InputFilterInterface;
-
-Se não tiver, adicione juntamente com o seguinte código:
-
-        public function setInputFilter(InputFilterInterface $inputFilter)
-        {
-          throw new \Exception("Não validado");
-	}
-
-Logo após coloque o código abaixo:
-
-	    public function getInputFilter()
+	     
+	    public function forgetMe()
 	    {
-		if (!$this->inputFilter) {
-		    $inputFilter = new InputFilter();
-		    $factory     = new InputFactory();
+		$this->session->getManager()->forgetMe();
+	    } 
+	}
 
-		    $inputFilter->add($factory->createInput(array(
-		        'name'     => 'id',
-		        'required' => true,
-		        'filters'  => array(
-		            array('name' => 'Int'),
-		        ),
-		    )));
+Depois vamos para a nossa controller AuthController.php, acredito que não precisa eu dizer o caminho, certo?
+Segue o código da classe:
 
-		    $inputFilter->add($factory->createInput(array(
-		        'name'     => 'marca',
-		        'required' => true,
-		        'filters'  => array(
-		            array('name' => 'StripTags'),
-		            array('name' => 'StringTrim'),
-		        ),
-		        'validators' => array(
-		            array(
-		                'name'    => 'StringLength',
-		                'options' => array(
-		                    'encoding' => 'UTF-8',
-		                    'min'      => 1,
-		                    'max'      => 100,
-		                ),
-		            ),
-		        ),
-		    )));
+	<?php
+	namespace Autenticacao\Controller;
 
-		    $inputFilter->add($factory->createInput(array(
-		        'name'     => 'modelo',
-		        'required' => true,
-		        'filters'  => array(
-		            array('name' => 'StripTags'),
-		            array('name' => 'StringTrim'),
-		        ),
-		        'validators' => array(
-		            array(
-		                'name'    => 'StringLength',
-		                'options' => array(
-		                    'encoding' => 'UTF-8',
-		                    'min'      => 1,
-		                    'max'      => 100,
-		                ),
-		            ),
-		        ),
-		    )));
 
-		    $this->inputFilter = $inputFilter;
+	use Zend\Mvc\Controller\AbstractActionController;
+	use Zend\Form\Annotation\AnnotationBuilder;
+	use Zend\View\Model\ViewModel;
+	use Application\Controller;
+
+	class AuthController extends AbstractActionController
+	{
+
+	    protected $storage;
+	    protected $authservice;
+	    protected $usuarioTable;
+
+	    public function getAuthService()
+	    {
+		if (! $this->authservice) {
+		    $this->authservice = $this->getServiceLocator()
+		                              ->get('AuthService');
 		}
 
-		return $this->inputFilter;
+		return $this->authservice;
 	    }
 
-Verifique também se sua classe possui o seguinte atributo:
-
-	protected $inputFilter; 
-
-Perfeito, com isso seu formulário já está meio caminho andado, agora vamos para a controller e depois para a view.
-Na controller adicione o seguinte código, lembrando que o caminho da sua controller é
-projeto3/module/Celular/src/Celular/Controller/IndexController.php.
-
-	use Celular\Model\Celular;          // <-- adicione essa linha
-	use Celular\Form\CelularForm;       // <-- adicione essa linha
-
-
-E depois no mesmo arquivo, ou seja, na sua classe de controller coloque a sua Action add:
-
-	public function addAction()
+	    public function getSessionStorage()
 	    {
-	    	$form = new CelularForm();
-	    	$form->get('submit')->setValue('Add');
-	    
-	    	$request = $this->getRequest();
-	    	if ($request->isPost()) {
-	    		$celular = new Celular();
-	    		$form->setInputFilter($celular->getInputFilter());
-	    		$form->setData($request->getPost());
-	    
-	    		if ($form->isValid()) {
-	    			$celular->exchangeArray($form->getData());
-	    			$this->getCelularTable()->salvarCelular($celular);
-	    
-	    			return $this->redirect()->toRoute('celular');
-	    		}
-	    	}
-	    	return array('form' => $form);
+		if (! $this->storage) {
+		    $this->storage = $this->getServiceLocator()
+		                          ->get('Autenticacao\Model\AutenticacaoStorage');
+		}
+
+		return $this->storage;
 	    }
 
-Agora vamos criar um método de salvar o celular em nossa classe CelularTable que está no caminho
-projeto3/module/Celular/src/Celular/Model/CelularTable.php vamos criar o método abaixo:
-
-	public function salvarCelular(Celular $celular)
+	    public function loginAction()
 	    {
-		$data = array(
-		    'marca' => $celular->marca,
-		    'modelo' => $celular->modelo,
-		    'ativo' => CelularTable::ATIVO,
-		);
-		
-		$id = (int) $celular->id;
-		if ($id == 0) {
-		    $this->tableGateway->insert($data);
-		} else {
-		    if ($this->getCelular($id)) {
-		        $this->tableGateway->update($data, array(
-		            'id' => $id
-		        ));
-		    } else {
-		        throw new \Exception('Não existe registro com esse ID' . $id);
-		    }
+
+		if ($this->getAuthService()->hasIdentity()){
+		   // return $this->redirect()->toRoute('success');
 		}
 	    }
 
-Por último em seu add.phtml vamos colocar o código:
-
-	<?php
-
-	$title = 'Cadastrar um novo celular';
-	$this->headTitle($title);
-	?>
-	<h1><?php echo $this->escapeHtml($title); ?></h1>
-	<?php
-	$form = $this->form;
-	$form->setAttribute('action', $this->basePath('celular/index/add'));
-	$form->prepare();
-
-	echo $this->form()->openTag($form);
-	echo $this->formHidden($form->get('id'));
-	echo $this->formRow($form->get('marca'));
-	echo $this->formRow($form->get('modelo'));
-	echo $this->formSubmit($form->get('submit'));
-	echo $this->form()->closeTag();
-Pronto! Criamos nosso primeiro formulário de cadastro de celulares.
-Agora vamos criar um CRUD.
-
-CRUD completo em Zend Framework 2
-------------------------------------
-
-Como já fizemos o cadastro, o resto fica muito fácil, pois já configuramos o nossos Zend\Form\Form.
-Agora vamos criar a nossa Action de editar nossos registros e como tudo no ZF2 isso é muito simples.
-Vamos criar uma Action exclusivamente para realizar edição no caminho 
-projeto3/module/Celular/celular/view/index/edit.phtml com o seguinte código:
-
-	<?php
-	$title = 'Editar o celular';
-	$this->headTitle($title);
-	?>
-	<h1><?php echo $this->escapeHtml($title); ?></h1>
-	<?php
-	$form = $this->form;
-	$form->setAttribute('action', $this->basePath('celular/index/edit'));
-	$form->prepare();
-	?>
-	<div class="page-header">
-	<?php echo $this->form()->openTag($form); ?>
-	<?php echo $this->formHidden($form->get('id'));?>
-	    <div class="form-group">
-	    	<label for="marca" class="col-sm-2 control-label">Marca</label>
-	    	<div class="col-sm-3">
-	    		<?php echo $this->formRow($form->get('marca')); ?>
-	    	</div>
-	    </div>
-	    <div class="form-group">
-	    	<label for="modelo" class="col-sm-2 control-label">Modelo</label>
-	    	<div class="col-sm-3">
-	    		<?php echo $this->formRow($form->get('modelo')); ?>
-	    	</div>
-	    </div>
-	    <div class="form-group">
-	    	<div class="col-sm-offset-2 col-sm-4">
-	    		<?php echo $this->formSubmit($form->get('submit')); ?>
-	    	</div>
-	    </div>
-	<?php echo $this->form()->closeTag();?>
-	</div>
-
-Já que fizemos o template, agora vamos criar o nosso método de Action em nossa IndexController.php.
-Adicione o seguinte método:
-
-	 public function editAction()
+	    public function autenticarAction()
 	    {
-	    	$id = (int) $this->params()->fromRoute('id', 0);
-	    	
-	    	if (empty($id))
+		$redirect = 'autenticar';
+		$request = $this->getRequest();
+
+		if ($request->isPost()){
+		        //Verifica autenticacao
+		        $this->getAuthService()->getAdapter()
+		                               ->setIdentity($request->getPost('login'))
+		                               ->setCredential($request->getPost('senha'));
+
+		        $result = $this->getAuthService()->authenticate();
+		        foreach($result->getMessages() as $message)
+		        {
+		            $this->flashmessenger()->addMessage($message);
+		        }
+		        if ($result->isValid()) {
+		            $redirect = 'home';
+		            if ($request->getPost('rememberme') == 1 ) {
+		                $this->getSessionStorage()
+		                     ->setRememberMe(1);
+		                $this->getAuthService()->setStorage($this->getSessionStorage());
+		            }
+
+		            $usuarioLogado  = $this->getUsuarioTable()->getUsuarioIdentidade($request->getPost('autenticar'));
+		            $this->getAuthService()->setStorage($this->getSessionStorage());
+		            $this->getAuthService()->getStorage()->write($usuarioLogado);
+		        }
+
+		}
+
+		return $this->redirect()->toRoute($redirect);
+	    }
+
+	    public function logoutAction()
+	    {
+		$this->getSessionStorage()->forgetMe();
+		$this->getAuthService()->clearIdentity();
+
+		$this->flashmessenger()->addMessage("Você acabou de sair do sistema");
+		return $this->redirect()->toRoute('autenticar');
+	    }
+
+	    public function getUsuarioTable()
+	    {
+	    	if (!$this->usuarioTable)
 	    	{
-	    		$id = $this->getRequest()->getPost('id');
-	    		if (empty($id)) {
-	    			return $this->redirect()->toUrl('add');
-	    		}
+	    		$sm = $this->getServiceLocator();
+	    		$this->usuarioTable = $sm->get('Usuario\Model\UsuarioTable');
 	    	}
-	    	
-	    	try {
-	    		$celular = $this->getCelularTable()->getCelular($id);
-	    	}
-	    	catch (\Exception $ex) {
-	    		return $this->redirect()->toRoute('celular', array( 
-	    				'action' => 'index'
-	    		));
-	    	}
-	    
-	    	$form  = new CelularForm();
-	    	$form->bind($celular);
-	    
-	    	$request = $this->getRequest();
-	    	if ($request->isPost()) {
-	    		$form->setInputFilter($celular->getInputFilter());
-	    		$form->setData($request->getPost());
-	    
-	    		if ($form->isValid()) {
-	    			$this->getCelularTable()->salvarCelular($form->getData());
-	    
-	    			return $this->redirect()->toRoute('celular');
-	    		}
-	    	}
-	    
-	    	return array(
-	    			'id' => $id,
-	    			'form' => $form,
-	    	);
+	    	return $this->usuarioTable;
 	    }
+	}
+Ainda no módulo de Autenticacao, vamos criar o nosso layout para nossa tela de login no seguinte arquivo
+projeto4/module/Autenticacao/src/Autenticacao/view/layout/login.phtml com o seguinte código:
 
+	<?php echo $this->doctype(); ?>
 
-Certifique-se que o seu index.phtml que é o arquivo que exibe sua listagem tenha o seguinte código html:
+	<html lang="en">
+	    <head>
+		<meta charset="utf-8">
+		<?php echo $this->headTitle($this->translate('Login'))->setSeparator(' - ')->setAutoEscape(false) ?>
 
-	<a href="<?php echo $this->basePath('celular/index/edit/' . $celular->id) ?>"><span class="glyphicon glyphicon-pencil"></span> Editar</a>
+		<?php echo $this->headMeta()
+		    ->appendName('viewport', 'width=device-width, initial-scale=1.0')
+		    ->appendHttpEquiv('X-UA-Compatible', 'IE=edge')
+		?>
 
+		<!-- Le styles -->
+		<?php echo $this->headLink(array('rel' => 'shortcut icon', 'type' => 'image/vnd.microsoft.icon', 'href' => $this->basePath() . '/img/favicon.ico'))
+		                ->prependStylesheet($this->basePath() . '/css/style.css')
+		                ->prependStylesheet($this->basePath() . '/css/bootstrap-theme.min.css')
+		                ->prependStylesheet($this->basePath() . '/css/bootstrap.min.css') ?>
 
-Pronto! Agora também podemos editar nosso cadastro de celulares, então vamos para o último passo que é deletar os registros.
-Também temos que criar uma template delete.phtml com o seguinte código:
+		<!-- Scripts -->
+		<?php echo $this->headScript()
+		    ->prependFile($this->basePath() . '/js/bootstrap.min.js')
+		    ->prependFile($this->basePath() . '/js/jquery.min.js')
+		    ->prependFile($this->basePath() . '/js/respond.min.js', 'text/javascript', array('conditional' => 'lt IE 9',))
+		    ->prependFile($this->basePath() . '/js/html5shiv.js',   'text/javascript', array('conditional' => 'lt IE 9',))
+		; ?>
+
+	    </head>
+	    <body>
+		<nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+		    <div class="container">
+		        <div class="navbar-header">
+		            <img src="<?php echo $this->basePath('img/zf2-logo.png') ?>" alt="Zend Framework 2"/>&nbsp;<?php echo $this->translate('Nataniel Paiva') ?></a>
+		        </div>
+		    </div>
+		</nav>
+		<div class="container">
+		    <?php echo $this->content; ?>
+		    <hr>
+		    <footer>
+		        <p>&copy; 2005 - <?php echo date('Y') ?> by Zend Technologies Ltd. <?php echo $this->translate('All rights reserved.') ?></p>
+		    </footer>
+		</div> <!-- /container -->
+		<?php echo $this->inlineScript() ?>
+	    </body>
+	</html>
+
+Pronto!Agora está quase pronta nossa autenticação, faltando apenas criar uma configuração em nosso módulo Application, para que somente o usuário que estiver logado
+consiga navegar nos menus do sistema.
+No arquivo projeto4/module/Application/Module.php coloque o seguinte código:
 
 	<?php
-	$title = 'Excluir Celular';
-	$this->headTitle($title);
-	?>
-	<h1><?php echo $this->escapeHtml($title); ?></h1>
+	namespace Application;
 
-	<p>Você tem certeza que vai deletar esses registros:
-	    '<?php echo $this->escapeHtml($celular->marca); ?>' 
-	    '<?php echo $this->escapeHtml($celular->modelo); ?>'?
-	</p>
-	<form action="<?php echo $this->basepath("celular/index/delete/{$this->id}"); ?>" method="post">
-	<div>
-	    <input type="hidden" name="id" value="<?php echo (int) $celular->id; ?>" />
-	    <input type="submit" name="del" value="Sim" />
-	    <input type="submit" name="del" value="Nao" />
-	</div>
-	</form>
+	use Zend\Mvc\ModuleRouteListener;
+	use Zend\Mvc\MvcEvent;
 
-E por último vamos criar nosso método deleteAction em nossa IndexController.php com o seguinte código:
-
-	public function deleteAction()
+	class Module
+	{
+	    public function onBootstrap(MvcEvent $e)
 	    {
-	    	$id = (int) $this->params()->fromRoute('id', 0);
-	    	if (!$id) {
-	    		return $this->redirect()->toRoute('celular');
-	    	}
-	    
-	    	$request = $this->getRequest();
-	    	if ($request->isPost()) {
-	    		$del = $request->getPost('del', 'Nao');
-	    
-	    		if ($del == 'Sim') {
-	    			$id = (int) $request->getPost('id');
-	    			$this->getCelularTable()->deletarCelular($id);
-	    		}
-	    
-	    		return $this->redirect()->toRoute('celular');
-	    	}
-	    
-	    	return array(
-	    			'id'    => $id,
-	    			'celular' => $this->getCelularTable()->getCelular($id)
-	    	);
+		$eventManager        = $e->getApplication()->getEventManager();
+		$moduleRouteListener = new ModuleRouteListener();
+		$moduleRouteListener->attach($eventManager);
+		
+		$application = $e->getApplication();
+		$sm = $application->getServiceManager();
+		
+		
+		if (!$sm->get('AuthService')->hasIdentity()) {
+		    $e->getApplication()
+		    ->getEventManager()
+		    ->attach('route', array(
+		    $this,
+		    'verificaRota'
+		));
+		}
 	    }
 
-Pronto! Finalizamos o nosso primeiro CRUD em ZF2!
-Muito simples né? No próximo projeto vamos ver sobre autenticação de usuários.
+	    public function getConfig()
+	    {
+		return include __DIR__ . '/config/module.config.php';
+	    }
 
+	    public function getAutoloaderConfig()
+	    {
+		return array(
+		    'Zend\Loader\StandardAutoloader' => array(
+		        'namespaces' => array(
+		            __NAMESPACE__ => __DIR__ . '/src/' . __NAMESPACE__,
+		        ),
+		    ),
+		);
+	    }
+	    
+	    public function verificaRota(MvcEvent $e)
+	    {
+		$route = $e->getRouteMatch()->getMatchedRouteName();
+		
+		if ( $route != "autenticar" ) {
+			$response = $e->getResponse();
+			$response -> getHeaders() -> addHeaderLine('Location', $e -> getRequest() -> getBaseUrl() . '/autenticar/');
+			$response -> setStatusCode(404);
+			$response->sendHeaders ();exit;
+		}
+	    }
+	}
 
-
-
+Perfeito! Agora temos um projeto com autenticação via banco de dados mysql, é lógico que poderíamos utilizar de várias outras formas de autenticação,
+por arquivo, LDAP ou etc...
+Mas como é só o ponta pé inicial, espero que esse projeto ajude em nossas aulas.
+Agora em nosso próximo projeto, ou seja, o projeto 5 irei implementa além da autenticação o ACL, continue seguindo os projetos que você irá muito bem em nossas
+aulas presenciais de Zend Framework 2.
 
 
 

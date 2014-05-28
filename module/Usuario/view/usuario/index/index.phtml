@@ -1,0 +1,30 @@
+<?php
+$title = 'Usuários';
+$this->headTitle($title);
+?>
+<h1><?php echo $this->escapeHtml($title); ?></h1>
+<p>
+    <a href="<?php echo $this->basePath('usuario/index/add') ?>"><span class="glyphicon glyphicon-plus"></span>  Cadastrar novo usuário</a>
+</p>
+
+    <div class="table-responsive">
+        <table class="table">
+        <tr>
+            <th>Nome</th>
+            <th>Email</th>
+            <th>login</th>
+            <th>&nbsp;</th>
+        </tr>
+        <?php foreach ($usuarios as $usuario) : ?>
+        <tr>
+            <td><?php echo $this->escapeHtml($usuario->nome);?></td>
+            <td><?php echo $this->escapeHtml($usuario->email);?></td>
+            <td><?php echo $this->escapeHtml($usuario->login);?></td>
+            <td>
+                <a href="<?php echo $this->basePath('usuario/index/edit/' . $usuario->id) ?>"><span class="glyphicon glyphicon-pencil"></span> Editar</a>
+                <a href="<?php echo $this->basePath('usuario/index/delete/' . $usuario->id) ?>"><span class="glyphicon glyphicon-remove"></span> Apagar</a>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+        </table>
+    </div>
