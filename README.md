@@ -17,7 +17,7 @@ Tabela de autenticação
 Vamos começar criando uma tabela para realizarmos nossa autenticação.
 Vamos criar a tb_usuario.
 O banco para o nosso projeto será o sequinte script:
-
+~~~sql
 	CREATE SCHEMA IF NOT EXISTS `db_projeto4` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci ;
 
 	CREATE TABLE IF NOT EXISTS `db_projeto4`.`tb_celular` (
@@ -48,13 +48,13 @@ O banco para o nosso projeto será o sequinte script:
 	INSERT INTO `db_projeto4`.`tb_celular` (`id`, `marca`, `modelo`, `ativo`) VALUES ('', 'Nokia', 'Lumia', '1');
 
 	INSERT INTO `db_projeto4`.`tb_usuario` (`nome`, `email`, `login`, `senha`) VALUES ('Nataniel Paiva', 'nataniel.paiva@gmail.com', 'nataniel.paiva', md5('123'));
-
+~~~
 
 Nesse projeto irá conter mais um CRUD de usuários, porém não irei mostrar esse exemplo aqui.
 Vamos nos focar em criar a autenticação.
 
 Primeiro vamos criar o módulo Autenticacao e em seu arquivo Module.php coloque o seguinte código:
-
+~~~php
 	<?php
 	namespace Autenticacao;
 
@@ -123,10 +123,10 @@ Primeiro vamos criar o módulo Autenticacao e em seu arquivo Module.php coloque 
 	    	);
 	    }
 	}
-
+~~~
 
 Depois vamos criar as rotas em nosso arquivo module.config.php com o seguinte código:
-
+~~~php
 	<?php
 	return array(
 	    'controllers' => array(
@@ -178,12 +178,12 @@ Depois vamos criar as rotas em nosso arquivo module.config.php com o seguinte c�
 		),
 	    ),
 	);
-
+~~~
 Depois teremos mais configurações no aquivo Module.php do módulo Application, mas vamos primeiro criar as classes necessárias no
 módulo de Autenticacao.
 Primeiro vamos criar a nossa model Autenticacao no seguinte caminho projeto4/module/Autenticacao/src/Autenticacao/Model/AutenticacaoStorage.php
 com o seguinte código:
-
+~~~php
 	<?php
 	namespace Autenticacao\Model;
 	 
@@ -203,10 +203,10 @@ com o seguinte código:
 		$this->session->getManager()->forgetMe();
 	    } 
 	}
-
+~~~
 Depois vamos para a nossa controller AuthController.php, acredito que não precisa eu dizer o caminho, certo?
 Segue o código da classe:
-
+~~~php
 	<?php
 	namespace Autenticacao\Controller;
 
@@ -304,9 +304,11 @@ Segue o código da classe:
 	    	return $this->usuarioTable;
 	    }
 	}
+
+~~~
 Ainda no módulo de Autenticacao, vamos criar o nosso layout para nossa tela de login no seguinte arquivo
 projeto4/module/Autenticacao/src/Autenticacao/view/layout/login.phtml com o seguinte código:
-
+~~~php
 	<?php echo $this->doctype(); ?>
 
 	<html lang="en">
@@ -352,11 +354,11 @@ projeto4/module/Autenticacao/src/Autenticacao/view/layout/login.phtml com o segu
 		<?php echo $this->inlineScript() ?>
 	    </body>
 	</html>
-
+~~~
 Pronto!Agora está quase pronta nossa autenticação, faltando apenas criar uma configuração em nosso módulo Application, para que somente o usuário que estiver logado
 consiga navegar nos menus do sistema.
 No arquivo projeto4/module/Application/Module.php coloque o seguinte código:
-
+~~~php
 	<?php
 	namespace Application;
 
@@ -413,7 +415,7 @@ No arquivo projeto4/module/Application/Module.php coloque o seguinte código:
 		}
 	    }
 	}
-
+~~~
 Perfeito! Agora temos um projeto com autenticação via banco de dados mysql, é lógico que poderíamos utilizar de várias outras formas de autenticação,
 por arquivo, LDAP ou etc...
 Mas como é só o ponta pé inicial, espero que esse projeto ajude em nossas aulas presenciais.
